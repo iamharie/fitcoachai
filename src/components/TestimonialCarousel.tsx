@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { HiChevronLeft, HiChevronRight, HiStar } from 'react-icons/hi';
-import { FaQuoteLeft, FaRocket, FaHeart, FaBrain } from 'react-icons/fa';
+import React, { useState, useEffect } from "react";
+import { HiChevronLeft, HiChevronRight, HiStar } from "react-icons/hi";
+import { FaQuoteLeft, FaRocket, FaHeart, FaBrain } from "react-icons/fa";
 
 const TestimonialCarousel = () => {
   const [currentSlide, setCurrentSlide] = useState(0);
@@ -9,24 +9,27 @@ const TestimonialCarousel = () => {
     {
       icon: <FaRocket className="h-8 w-8" />,
       title: "Lightning Fast Results",
-      description: "Get your personalized calorie needs calculated in under 2 minutes. Our AI processes your data instantly and provides accurate recommendations based on the latest nutritional science.",
+      description:
+        "Get your personalized calorie needs calculated in under 2 minutes. Our AI processes your data instantly and provides accurate recommendations based on the latest nutritional science.",
       color: "from-blue-500 to-cyan-500",
-      stats: "2 min setup"
+      stats: "2 min setup",
     },
     {
       icon: <FaBrain className="h-8 w-8" />,
       title: "AI-Powered Intelligence",
-      description: "Our advanced AI doesn't just count calories - it understands your lifestyle, preferences, and goals to create meal plans that you'll actually want to follow and can realistically maintain.",
+      description:
+        "Our advanced AI doesn't just count calories - it understands your lifestyle, preferences, and goals to create meal plans that you'll actually want to follow and can realistically maintain.",
       color: "from-purple-500 to-indigo-500",
-      stats: "Smart AI"
+      stats: "Smart AI",
     },
     {
       icon: <FaHeart className="h-8 w-8" />,
       title: "Completely Free Forever",
-      description: "No hidden fees, no premium tiers, no credit card required. We believe everyone deserves access to professional-grade nutrition planning, regardless of budget. Your health shouldn't cost a fortune.",
+      description:
+        "No hidden fees, no premium tiers, no credit card required. We believe everyone deserves access to professional-grade nutrition planning, regardless of budget. Your health shouldn't cost a fortune.",
       color: "from-green-500 to-emerald-500",
-      stats: "100% Free"
-    }
+      stats: "100% Free",
+    },
   ];
 
   useEffect(() => {
@@ -49,17 +52,18 @@ const TestimonialCarousel = () => {
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-16">
           <h2 className="text-4xl md:text-5xl font-bold text-gray-900 dark:text-white mb-4">
-            Why Thousands Choose Us
+            Discover Our Unique Edge
           </h2>
           <p className="text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
-            Discover the features that make our platform the go-to choice for smart nutrition planning
+            Discover the features that make our platform the go-to choice for
+            smart nutrition planning
           </p>
         </div>
 
         <div className="relative">
           {/* Main Carousel */}
           <div className="overflow-hidden rounded-3xl">
-            <div 
+            <div
               className="flex transition-transform duration-500 ease-in-out"
               style={{ transform: `translateX(-${currentSlide * 100}%)` }}
             >
@@ -69,7 +73,9 @@ const TestimonialCarousel = () => {
                     <div className="flex flex-col md:flex-row items-center gap-8">
                       {/* Icon */}
                       <div className="flex-shrink-0">
-                        <div className={`bg-gradient-to-r ${feature.color} p-6 rounded-full shadow-xl`}>
+                        <div
+                          className={`bg-gradient-to-r ${feature.color} p-6 rounded-full shadow-xl`}
+                        >
                           {feature.icon}
                         </div>
                       </div>
@@ -94,7 +100,11 @@ const TestimonialCarousel = () => {
 
                         {/* CTA Button */}
                         <button
-                          onClick={() => document.getElementById('calorie-calculator')?.scrollIntoView({ behavior: 'smooth' })}
+                          onClick={() =>
+                            document
+                              .getElementById("calorie-calculator")
+                              ?.scrollIntoView({ behavior: "smooth" })
+                          }
                           className={`bg-gradient-to-r ${feature.color} text-white px-8 py-4 rounded-2xl font-bold text-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105`}
                         >
                           Try It Now - Free!
@@ -114,7 +124,7 @@ const TestimonialCarousel = () => {
           >
             <HiChevronLeft className="h-6 w-6 text-blue-600 dark:text-blue-400" />
           </button>
-          
+
           <button
             onClick={nextSlide}
             className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-4 bg-white dark:bg-gray-800 p-3 rounded-full shadow-xl border border-blue-200 dark:border-gray-600 hover:bg-blue-50 dark:hover:bg-gray-700 transition-all duration-300 z-10"
@@ -130,8 +140,8 @@ const TestimonialCarousel = () => {
                 onClick={() => setCurrentSlide(index)}
                 className={`w-3 h-3 rounded-full transition-all duration-300 ${
                   currentSlide === index
-                    ? 'bg-blue-600 dark:bg-blue-400 w-8'
-                    : 'bg-blue-200 dark:bg-gray-600 hover:bg-blue-300 dark:hover:bg-gray-500'
+                    ? "bg-blue-600 dark:bg-blue-400 w-8"
+                    : "bg-blue-200 dark:bg-gray-600 hover:bg-blue-300 dark:hover:bg-gray-500"
                 }`}
               />
             ))}
