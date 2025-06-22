@@ -15,6 +15,7 @@ import CalorieCalculator from "./components/CalorieCalculator";
 import ToolsPage from "./components/ToolsPage";
 import TestimonialCarousel from "./components/TestimonialCarousel";
 import Footer from "./components/Footer";
+import ScrollToTop from "./components/scroll/ScrollToTop";
 
 // test
 import TestForm from "./components/test/TestForm";
@@ -63,6 +64,7 @@ function AppContent() {
 
   return (
     <Router>
+      <ScrollToTop />
       <div
         className={`min-h-screen transition-colors duration-300 ${
           isDarkMode ? "dark bg-gray-900" : "bg-gray-50"
