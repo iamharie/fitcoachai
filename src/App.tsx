@@ -1,10 +1,12 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import {
   BrowserRouter as Router,
   Routes,
   Route,
   Navigate,
 } from "react-router-dom";
+import { Provider } from "react-redux";
+import { store } from "./store/store";
 import Header from "./components/Header";
 import Hero from "./components/Hero";
 import WhyChooseUs from "./components/WhyChooseUs";
@@ -14,7 +16,10 @@ import ToolsPage from "./components/ToolsPage";
 import TestimonialCarousel from "./components/TestimonialCarousel";
 import Footer from "./components/Footer";
 
-function App() {
+// test
+import TestForm from "./components/test/TestForm";
+
+function AppContent() {
   const [activeSection, setActiveSection] = useState("home");
   const [isDarkMode, setIsDarkMode] = useState(false);
 
@@ -106,6 +111,14 @@ function App() {
         <Footer />
       </div>
     </Router>
+  );
+}
+
+function App() {
+  return (
+    <Provider store={store}>
+      <AppContent />
+    </Provider>
   );
 }
 
