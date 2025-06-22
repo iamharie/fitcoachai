@@ -1,18 +1,10 @@
 import React, { useState } from 'react';
-import { FaRobot, FaUser, FaWeight, FaRulerVertical, FaEnvelope, FaCalendarAlt, FaSpinner, FaSave, FaUtensils, FaFire } from 'react-icons/fa';
-import { HiSparkles, HiLightningBolt, HiTrendingUp } from 'react-icons/hi';
+import { FaRobot, FaUtensils, FaSpinner, FaSave, FaFire } from 'react-icons/fa';
+import { HiSparkles, HiTrendingUp } from 'react-icons/hi';
+import { useAppDispatch, useAppSelector } from '../store/hooks';
+import { updateDietaryPreferences } from '../store/slices/userSlice';
+import { saveUserProfile } from '../services/firebaseService';
 import AIChat from './AIChat';
-
-interface UserProfile {
-  name: string;
-  age: string;
-  email: string;
-  weight: string;
-  height: string;
-  activityLevel: string;
-  goal: string;
-  dietaryRestrictions: string[];
-}
 
 interface MealPlan {
   breakfast: Array<{ name: string; calories: number; protein: number; carbs: number; fat: number; }>;
@@ -22,17 +14,9 @@ interface MealPlan {
 }
 
 const MealPlanner = () => {
-  const [userProfile, setUserProfile] = useState<UserProfile>({
-    name: '',
-    age: '',
-    email: '',
-    weight: '',
-    height: '',
-    activityLevel: 'moderate',
-    goal: 'maintain',
-    dietaryRestrictions: []
-  });
-
+  const dispatch = useAppDispatch();
+  const { profile, isProfileComplete, isDietaryPreferencesComplete } = useAppSelector((state) => state.user);
+  
   const [mealPlan, setMealPlan] = useState<MealPlan>({
     breakfast: [],
     lunch: [],
@@ -45,42 +29,26 @@ const MealPlanner = () => {
   const [showSuccess, setShowSuccess] = useState(false);
   const [showFloatingButton, setShowFloatingButton] = useState(false);
 
-  const activityLevels = [
-    { value: 'sedentary', label: 'Sedentary (little/no exercise)' },
-    { value: 'light', label: 'Light (light exercise 1-3 days/week)' },
-    { value: 'moderate', label: 'Moderate (moderate exercise 3-5 days/week)' },
-    { value: 'active', label: 'Active (hard exercise 6-7 days/week)' },
-    { value: 'very-active', label: 'Very Active (very hard exercise, physical job)' }
-  ];
-
-  const goals = [
-    { value: 'lose', label: 'Lose Weight' },
-    { value: 'maintain', label: 'Maintain Weight' },
-    { value: 'gain', label: 'Gain Weight' },
-    { value: 'muscle', label: 'Build Muscle' }
-  ];
-
   const dietaryOptions = [
     'Vegetarian', 'Vegan', 'Gluten-Free', 'Dairy-Free', 'Keto', 'Paleo', 'Mediterranean'
   ];
 
   const handleDietaryRestrictionChange = (restriction: string) => {
-    setUserProfile(prev => ({
-      ...prev,
-      dietaryRestrictions: prev.dietaryRestrictions.includes(restriction)
-        ? prev.dietaryRestrictions.filter(r => r !== restriction)
-        : [...prev.dietaryRestrictions, restriction]
-    }));
+    const newRestrictions = profile.dietaryRestrictions.includes(restriction)
+      ? profile.dietaryRestrictions.filter(r => r !== restriction)
+      : [...profile.dietaryRestrictions, restriction];
+    
+    dispatch(updateDietaryPreferences({ dietaryRestrictions: newRestrictions }));
   };
 
   const generateMealPlan = async () => {
-    if (!userProfile.name || !userProfile.age || !userProfile.email || !userProfile.weight || !userProfile.height) {
-      alert('Please fill in all required fields');
+    if (!isProfileComplete) {
+      alert('Please complete your basic information first in the "Your Information" section above.');
       return;
     }
 
     setIsGenerating(true);
-    setShowFloatingButton(false); // Reset floating button
+    setShowFloatingButton(false);
     
     try {
       // Simulate AI API call
@@ -111,9 +79,16 @@ const MealPlanner = () => {
       
       setMealPlan(mockMealPlan);
       
+      // Save updated profile to Firebase
+      try {
+        await saveUserProfile(profile);
+        console.log('Updated profile saved to Firebase');
+      } catch (error) {
+        console.error('Error saving to Firebase:', error);
+      }
+      
       // Show floating button after 5 seconds when meal plan is generated
       setTimeout(() => {
-        console.log('Setting floating button to true after meal plan generation');
         setShowFloatingButton(true);
       }, 5000);
       
@@ -129,19 +104,7 @@ const MealPlanner = () => {
     setIsSaving(true);
     
     try {
-      // Simulate Firebase save
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      const userData = {
-        ...userProfile,
-        mealPlan,
-        createdAt: new Date().toISOString(),
-        totalCalories: getTotalNutrition().calories
-      };
-      
-      // TODO: Replace with actual Firebase integration
-      console.log('Saving to Firebase:', userData);
-      
+      await saveUserProfile(profile);
       setShowSuccess(true);
       setTimeout(() => setShowSuccess(false), 3000);
     } catch (error) {
@@ -166,7 +129,6 @@ const MealPlanner = () => {
   };
 
   const scrollToMealPlan = () => {
-    console.log('Scrolling to meal plan section');
     const mealPlanSection = document.querySelector('[data-meal-plan-section]');
     if (mealPlanSection) {
       mealPlanSection.scrollIntoView({ 
@@ -192,7 +154,7 @@ const MealPlanner = () => {
             <HiSparkles className="h-8 w-8 text-blue-600 dark:text-blue-400 ml-3 animate-spin" />
           </div>
           <p className="text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
-            Get personalized meal plans powered by advanced AI. Just fill in your details and let our AI nutritionist create the perfect plan for your goals!
+            Get personalized meal plans powered by advanced AI. Select your dietary preferences and let our AI nutritionist create the perfect plan for your goals!
           </p>
         </div>
 
@@ -207,156 +169,46 @@ const MealPlanner = () => {
         )}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* User Profile Form */}
+          {/* Dietary Preferences Form */}
           <div className="lg:col-span-2 bg-white dark:bg-gray-800 rounded-3xl p-8 shadow-2xl border border-blue-100 dark:border-gray-700">
             <h3 className="text-3xl font-bold text-gray-900 dark:text-white mb-8 flex items-center gap-3">
-              <FaUser className="h-8 w-8 text-blue-600 dark:text-blue-400" />
-              Your Profile
+              <FaUtensils className="h-8 w-8 text-blue-600 dark:text-blue-400" />
+              Dietary Preferences
             </h3>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-              {/* Basic Info */}
-              <div className="space-y-6">
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">
-                    <FaUser className="h-4 w-4 inline mr-2 text-blue-600 dark:text-blue-400" />
-                    Full Name *
-                  </label>
-                  <input
-                    type="text"
-                    value={userProfile.name}
-                    onChange={(e) => setUserProfile(prev => ({ ...prev, name: e.target.value }))}
-                    placeholder="Enter your full name"
-                    className="w-full px-4 py-3 border-2 border-blue-200 dark:border-gray-600 rounded-xl focus:ring-4 focus:ring-blue-200 dark:focus:ring-blue-800 focus:border-blue-500 dark:focus:border-blue-400 transition-all duration-300 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">
-                    <FaCalendarAlt className="h-4 w-4 inline mr-2 text-blue-600 dark:text-blue-400" />
-                    Age *
-                  </label>
-                  <input
-                    type="number"
-                    value={userProfile.age}
-                    onChange={(e) => setUserProfile(prev => ({ ...prev, age: e.target.value }))}
-                    placeholder="Enter your age"
-                    min="1"
-                    max="120"
-                    className="w-full px-4 py-3 border-2 border-blue-200 dark:border-gray-600 rounded-xl focus:ring-4 focus:ring-blue-200 dark:focus:ring-blue-800 focus:border-blue-500 dark:focus:border-blue-400 transition-all duration-300 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">
-                    <FaEnvelope className="h-4 w-4 inline mr-2 text-blue-600 dark:text-blue-400" />
-                    Email Address *
-                  </label>
-                  <input
-                    type="email"
-                    value={userProfile.email}
-                    onChange={(e) => setUserProfile(prev => ({ ...prev, email: e.target.value }))}
-                    placeholder="Enter your email"
-                    className="w-full px-4 py-3 border-2 border-blue-200 dark:border-gray-600 rounded-xl focus:ring-4 focus:ring-blue-200 dark:focus:ring-blue-800 focus:border-blue-500 dark:focus:border-blue-400 transition-all duration-300 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                  />
-                </div>
+            {!isProfileComplete && (
+              <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 rounded-2xl p-6 mb-8">
+                <h4 className="font-bold text-yellow-800 dark:text-yellow-300 mb-2">Complete Your Basic Information First</h4>
+                <p className="text-yellow-700 dark:text-yellow-200">
+                  Please fill out your basic information in the "Your Information" section above before generating your meal plan.
+                </p>
               </div>
+            )}
 
-              {/* Physical Stats */}
-              <div className="space-y-6">
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">
-                    <FaWeight className="h-4 w-4 inline mr-2 text-blue-600 dark:text-blue-400" />
-                    Weight (kg) *
+            <div className="mb-8">
+              <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-4">
+                <FaUtensils className="h-4 w-4 inline mr-2 text-blue-600 dark:text-blue-400" />
+                Select Your Dietary Preferences (Optional)
+              </label>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                {dietaryOptions.map(option => (
+                  <label key={option} className="flex items-center space-x-3 cursor-pointer bg-gray-50 dark:bg-gray-700 p-4 rounded-xl hover:bg-blue-50 dark:hover:bg-gray-600 transition-all duration-300">
+                    <input
+                      type="checkbox"
+                      checked={profile.dietaryRestrictions.includes(option)}
+                      onChange={() => handleDietaryRestrictionChange(option)}
+                      className="w-5 h-5 text-blue-600 border-2 border-blue-300 rounded focus:ring-blue-500 dark:border-gray-600 dark:focus:ring-blue-600"
+                    />
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{option}</span>
                   </label>
-                  <input
-                    type="number"
-                    value={userProfile.weight}
-                    onChange={(e) => setUserProfile(prev => ({ ...prev, weight: e.target.value }))}
-                    placeholder="Enter your weight"
-                    min="30"
-                    max="300"
-                    className="w-full px-4 py-3 border-2 border-blue-200 dark:border-gray-600 rounded-xl focus:ring-4 focus:ring-blue-200 dark:focus:ring-blue-800 focus:border-blue-500 dark:focus:border-blue-400 transition-all duration-300 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">
-                    <FaRulerVertical className="h-4 w-4 inline mr-2 text-blue-600 dark:text-blue-400" />
-                    Height (cm) *
-                  </label>
-                  <input
-                    type="number"
-                    value={userProfile.height}
-                    onChange={(e) => setUserProfile(prev => ({ ...prev, height: e.target.value }))}
-                    placeholder="Enter your height"
-                    min="100"
-                    max="250"
-                    className="w-full px-4 py-3 border-2 border-blue-200 dark:border-gray-600 rounded-xl focus:ring-4 focus:ring-blue-200 dark:focus:ring-blue-800 focus:border-blue-500 dark:focus:border-blue-400 transition-all duration-300 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">
-                    <HiLightningBolt className="h-4 w-4 inline mr-2 text-blue-600 dark:text-blue-400" />
-                    Activity Level
-                  </label>
-                  <select
-                    value={userProfile.activityLevel}
-                    onChange={(e) => setUserProfile(prev => ({ ...prev, activityLevel: e.target.value }))}
-                    className="w-full px-4 py-3 border-2 border-blue-200 dark:border-gray-600 rounded-xl focus:ring-4 focus:ring-blue-200 dark:focus:ring-blue-800 focus:border-blue-500 dark:focus:border-blue-400 transition-all duration-300 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                  >
-                    {activityLevels.map(level => (
-                      <option key={level.value} value={level.value}>{level.label}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-            </div>
-
-            {/* Goals and Preferences */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-              <div>
-                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">
-                  <FaFire className="h-4 w-4 inline mr-2 text-blue-600 dark:text-blue-400" />
-                  Primary Goal
-                </label>
-                <select
-                  value={userProfile.goal}
-                  onChange={(e) => setUserProfile(prev => ({ ...prev, goal: e.target.value }))}
-                  className="w-full px-4 py-3 border-2 border-blue-200 dark:border-gray-600 rounded-xl focus:ring-4 focus:ring-blue-200 dark:focus:ring-blue-800 focus:border-blue-500 dark:focus:border-blue-400 transition-all duration-300 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                >
-                  {goals.map(goal => (
-                    <option key={goal.value} value={goal.value}>{goal.label}</option>
-                  ))}
-                </select>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">
-                  <FaUtensils className="h-4 w-4 inline mr-2 text-blue-600 dark:text-blue-400" />
-                  Dietary Preferences
-                </label>
-                <div className="grid grid-cols-2 gap-2">
-                  {dietaryOptions.map(option => (
-                    <label key={option} className="flex items-center space-x-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={userProfile.dietaryRestrictions.includes(option)}
-                        onChange={() => handleDietaryRestrictionChange(option)}
-                        className="w-4 h-4 text-blue-600 border-2 border-blue-300 rounded focus:ring-blue-500 dark:border-gray-600 dark:focus:ring-blue-600"
-                      />
-                      <span className="text-sm text-gray-700 dark:text-gray-300">{option}</span>
-                    </label>
-                  ))}
-                </div>
+                ))}
               </div>
             </div>
 
             {/* Generate Button */}
             <button
               onClick={generateMealPlan}
-              disabled={isGenerating}
+              disabled={isGenerating || !isProfileComplete}
               className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-8 py-4 rounded-2xl font-bold text-lg hover:from-blue-700 hover:to-indigo-700 transition-all duration-300 disabled:opacity-50 flex items-center justify-center gap-3 shadow-2xl transform hover:scale-105"
             >
               {isGenerating ? (
@@ -405,7 +257,7 @@ const MealPlanner = () => {
               {/* Save Button */}
               <button
                 onClick={saveToFirebase}
-                disabled={isSaving || totalNutrition.calories === 0}
+                disabled={isSaving || !isProfileComplete}
                 className="w-full bg-gradient-to-r from-green-500 to-green-600 text-white px-6 py-4 rounded-2xl font-bold hover:from-green-600 hover:to-green-700 transition-all duration-300 disabled:opacity-50 flex items-center justify-center gap-2 shadow-xl transform hover:scale-105"
               >
                 {isSaving ? (
@@ -426,7 +278,7 @@ const MealPlanner = () => {
 
         {/* AI Chat Section */}
         <div className="mt-16">
-          <AIChat userProfile={userProfile} />
+          <AIChat userProfile={profile} />
         </div>
 
         {/* Generated Meal Plan */}
@@ -474,11 +326,9 @@ const MealPlanner = () => {
         {showFloatingButton && totalNutrition.calories > 0 && (
           <div className="fixed bottom-8 right-8 z-50">
             <div className="relative">
-              {/* Pulsing ring animations */}
               <div className="absolute inset-0 bg-green-400 rounded-full animate-ping opacity-75"></div>
               <div className="absolute inset-0 bg-green-400 rounded-full animate-pulse opacity-50"></div>
               
-              {/* Main button */}
               <button
                 onClick={scrollToMealPlan}
                 className="relative bg-gradient-to-r from-green-500 to-emerald-500 text-white p-4 rounded-full shadow-2xl hover:from-green-600 hover:to-emerald-600 transition-all duration-300 transform hover:scale-110 animate-bounce"
@@ -487,7 +337,6 @@ const MealPlanner = () => {
                 <HiTrendingUp className="h-8 w-8" />
               </button>
               
-              {/* Tooltip */}
               <div className="absolute bottom-full right-0 mb-2 px-3 py-1 bg-gray-900 text-white text-sm rounded-lg whitespace-nowrap opacity-0 hover:opacity-100 transition-opacity duration-300">
                 View Your Meal Plan!
                 <div className="absolute top-full right-4 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>

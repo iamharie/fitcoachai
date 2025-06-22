@@ -1,15 +1,9 @@
 import React, { useState } from 'react';
 import { HiCalculator, HiUser, HiScale, HiLightningBolt, HiFire, HiHeart, HiTrendingUp } from 'react-icons/hi';
-import { FaWeight, FaRulerVertical, FaVenus, FaMars } from 'react-icons/fa';
-
-interface UserData {
-  age: string;
-  gender: 'male' | 'female';
-  weight: string;
-  height: string;
-  activityLevel: string;
-  goal: string;
-}
+import { FaWeight, FaRulerVertical, FaVenus, FaMars, FaEnvelope, FaCalendarAlt } from 'react-icons/fa';
+import { useAppDispatch, useAppSelector } from '../store/hooks';
+import { updateBasicInfo, updateCalculatedResults, setCreatedAt } from '../store/slices/userSlice';
+import { saveUserProfile } from '../services/firebaseService';
 
 interface CalorieResult {
   bmr: number;
@@ -21,15 +15,9 @@ interface CalorieResult {
 }
 
 const CalorieCalculator = () => {
-  const [userData, setUserData] = useState<UserData>({
-    age: '',
-    gender: 'male',
-    weight: '',
-    height: '',
-    activityLevel: 'moderate',
-    goal: 'maintain'
-  });
-
+  const dispatch = useAppDispatch();
+  const { profile, isProfileComplete } = useAppSelector((state) => state.user);
+  
   const [result, setResult] = useState<CalorieResult | null>(null);
   const [isCalculating, setIsCalculating] = useState(false);
   const [showFloatingButton, setShowFloatingButton] = useState(false);
@@ -48,35 +36,38 @@ const CalorieCalculator = () => {
     { value: 'gain', label: 'Gain Weight', adjustment: 500 }
   ];
 
-  const calculateCalories = () => {
-    if (!userData.age || !userData.weight || !userData.height) {
+  const handleInputChange = (field: string, value: string) => {
+    dispatch(updateBasicInfo({ [field]: value }));
+  };
+
+  const calculateCalories = async () => {
+    if (!isProfileComplete) {
       alert('Please fill in all required fields');
       return;
     }
 
     setIsCalculating(true);
-    // Reset floating button when starting new calculation
     setShowFloatingButton(false);
 
-    setTimeout(() => {
-      const age = parseInt(userData.age);
-      const weight = parseFloat(userData.weight);
-      const height = parseFloat(userData.height);
+    setTimeout(async () => {
+      const age = parseInt(profile.age);
+      const weight = parseFloat(profile.weight);
+      const height = parseFloat(profile.height);
 
       // Calculate BMR using Mifflin-St Jeor Equation
       let bmr;
-      if (userData.gender === 'male') {
+      if (profile.gender === 'male') {
         bmr = 10 * weight + 6.25 * height - 5 * age + 5;
       } else {
         bmr = 10 * weight + 6.25 * height - 5 * age - 161;
       }
 
       // Calculate TDEE
-      const activityMultiplier = activityLevels.find(level => level.value === userData.activityLevel)?.multiplier || 1.55;
+      const activityMultiplier = activityLevels.find(level => level.value === profile.activityLevel)?.multiplier || 1.55;
       const tdee = bmr * activityMultiplier;
 
       // Calculate goal calories
-      const goalAdjustment = goals.find(goal => goal.value === userData.goal)?.adjustment || 0;
+      const goalAdjustment = goals.find(goal => goal.value === profile.goal)?.adjustment || 0;
       const goalCalories = tdee + goalAdjustment;
 
       // Calculate BMI
@@ -100,21 +91,36 @@ const CalorieCalculator = () => {
         recommendation = 'For your health and wellbeing, weight loss would be beneficial. Please consider consulting with a healthcare professional for a comprehensive plan. Focus on sustainable lifestyle changes including nutrition and physical activity.';
       }
 
-      const newResult = {
+      const calculatedResults = {
         bmr: Math.round(bmr),
         tdee: Math.round(tdee),
         goalCalories: Math.round(goalCalories),
         weightStatus,
-        bmi: parseFloat(bmi.toFixed(1)),
+        bmi: parseFloat(bmi.toFixed(1))
+      };
+
+      const newResult = {
+        ...calculatedResults,
         recommendation
       };
+
+      // Update Redux store with calculated results
+      dispatch(updateCalculatedResults(calculatedResults));
+      dispatch(setCreatedAt());
+
+      // Save to Firebase
+      try {
+        await saveUserProfile(profile);
+        console.log('Profile saved to Firebase successfully');
+      } catch (error) {
+        console.error('Error saving to Firebase:', error);
+      }
 
       setResult(newResult);
       setIsCalculating(false);
 
-      // Show floating button after 5 seconds ONLY if we have results
+      // Show floating button after 5 seconds
       setTimeout(() => {
-        console.log('Setting floating button to true'); // Debug log
         setShowFloatingButton(true);
       }, 5000);
     }, 2000);
@@ -136,10 +142,9 @@ const CalorieCalculator = () => {
   };
 
   const scrollToMealPlan = () => {
-    console.log('Scrolling to meal plan'); // Debug log
     const mealPlanSection = document.getElementById('meal-planner');
     if (mealPlanSection) {
-      const headerHeight = 80; // Account for fixed header
+      const headerHeight = 80;
       const elementPosition = mealPlanSection.offsetTop - headerHeight;
       window.scrollTo({
         top: elementPosition,
@@ -157,21 +162,21 @@ const CalorieCalculator = () => {
           <div className="flex items-center justify-center mb-6">
             <HiCalculator className="h-8 w-8 text-blue-600 dark:text-blue-400 mr-3" />
             <h2 className="text-5xl md:text-6xl font-black bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 bg-clip-text text-transparent">
-              Smart Calorie Calculator
+              Your Information
             </h2>
             <HiCalculator className="h-8 w-8 text-blue-600 dark:text-blue-400 ml-3" />
           </div>
           <p className="text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
-            Discover your daily calorie needs and get personalized recommendations based on your goals and body composition.
+            Tell us about yourself to get personalized calorie recommendations and meal plans tailored to your goals.
           </p>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Calculator Form */}
+          {/* User Information Form */}
           <div className="lg:col-span-2 bg-white dark:bg-gray-800 rounded-3xl p-8 shadow-2xl border border-blue-100 dark:border-gray-700">
             <h3 className="text-3xl font-bold text-gray-900 dark:text-white mb-8 flex items-center gap-3">
               <HiUser className="h-8 w-8 text-blue-600 dark:text-blue-400" />
-              Your Information
+              Personal Details
             </h3>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
@@ -179,15 +184,44 @@ const CalorieCalculator = () => {
               <div className="space-y-6">
                 <div>
                   <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">
+                    <HiUser className="h-4 w-4 inline mr-2 text-blue-600 dark:text-blue-400" />
+                    Full Name *
+                  </label>
+                  <input
+                    type="text"
+                    value={profile.name}
+                    onChange={(e) => handleInputChange('name', e.target.value)}
+                    placeholder="Enter your full name"
+                    className="w-full px-4 py-3 border-2 border-blue-200 dark:border-gray-600 rounded-xl focus:ring-4 focus:ring-blue-200 dark:focus:ring-blue-800 focus:border-blue-500 dark:focus:border-blue-400 transition-all duration-300 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">
+                    <FaCalendarAlt className="h-4 w-4 inline mr-2 text-blue-600 dark:text-blue-400" />
                     Age *
                   </label>
                   <input
                     type="number"
-                    value={userData.age}
-                    onChange={(e) => setUserData(prev => ({ ...prev, age: e.target.value }))}
+                    value={profile.age}
+                    onChange={(e) => handleInputChange('age', e.target.value)}
                     placeholder="Enter your age"
                     min="1"
                     max="120"
+                    className="w-full px-4 py-3 border-2 border-blue-200 dark:border-gray-600 rounded-xl focus:ring-4 focus:ring-blue-200 dark:focus:ring-blue-800 focus:border-blue-500 dark:focus:border-blue-400 transition-all duration-300 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">
+                    <FaEnvelope className="h-4 w-4 inline mr-2 text-blue-600 dark:text-blue-400" />
+                    Email Address *
+                  </label>
+                  <input
+                    type="email"
+                    value={profile.email}
+                    onChange={(e) => handleInputChange('email', e.target.value)}
+                    placeholder="Enter your email"
                     className="w-full px-4 py-3 border-2 border-blue-200 dark:border-gray-600 rounded-xl focus:ring-4 focus:ring-blue-200 dark:focus:ring-blue-800 focus:border-blue-500 dark:focus:border-blue-400 transition-all duration-300 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                   />
                 </div>
@@ -202,8 +236,8 @@ const CalorieCalculator = () => {
                         type="radio"
                         name="gender"
                         value="male"
-                        checked={userData.gender === 'male'}
-                        onChange={(e) => setUserData(prev => ({ ...prev, gender: e.target.value as 'male' | 'female' }))}
+                        checked={profile.gender === 'male'}
+                        onChange={(e) => handleInputChange('gender', e.target.value)}
                         className="w-4 h-4 text-blue-600 border-2 border-blue-300 focus:ring-blue-500 dark:border-gray-600 dark:focus:ring-blue-600"
                       />
                       <span className="ml-2 text-gray-700 dark:text-gray-300 flex items-center gap-1">
@@ -216,8 +250,8 @@ const CalorieCalculator = () => {
                         type="radio"
                         name="gender"
                         value="female"
-                        checked={userData.gender === 'female'}
-                        onChange={(e) => setUserData(prev => ({ ...prev, gender: e.target.value as 'male' | 'female' }))}
+                        checked={profile.gender === 'female'}
+                        onChange={(e) => handleInputChange('gender', e.target.value)}
                         className="w-4 h-4 text-blue-600 border-2 border-blue-300 focus:ring-blue-500 dark:border-gray-600 dark:focus:ring-blue-600"
                       />
                       <span className="ml-2 text-gray-700 dark:text-gray-300 flex items-center gap-1">
@@ -238,8 +272,8 @@ const CalorieCalculator = () => {
                   </label>
                   <input
                     type="number"
-                    value={userData.weight}
-                    onChange={(e) => setUserData(prev => ({ ...prev, weight: e.target.value }))}
+                    value={profile.weight}
+                    onChange={(e) => handleInputChange('weight', e.target.value)}
                     placeholder="Enter your weight"
                     min="30"
                     max="300"
@@ -255,56 +289,53 @@ const CalorieCalculator = () => {
                   </label>
                   <input
                     type="number"
-                    value={userData.height}
-                    onChange={(e) => setUserData(prev => ({ ...prev, height: e.target.value }))}
+                    value={profile.height}
+                    onChange={(e) => handleInputChange('height', e.target.value)}
                     placeholder="Enter your height"
                     min="100"
                     max="250"
                     className="w-full px-4 py-3 border-2 border-blue-200 dark:border-gray-600 rounded-xl focus:ring-4 focus:ring-blue-200 dark:focus:ring-blue-800 focus:border-blue-500 dark:focus:border-blue-400 transition-all duration-300 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                   />
                 </div>
-              </div>
-            </div>
 
-            {/* Activity Level and Goal */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-              <div>
-                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">
-                  <HiLightningBolt className="h-4 w-4 inline mr-2 text-blue-600 dark:text-blue-400" />
-                  Activity Level
-                </label>
-                <select
-                  value={userData.activityLevel}
-                  onChange={(e) => setUserData(prev => ({ ...prev, activityLevel: e.target.value }))}
-                  className="w-full px-4 py-3 border-2 border-blue-200 dark:border-gray-600 rounded-xl focus:ring-4 focus:ring-blue-200 dark:focus:ring-blue-800 focus:border-blue-500 dark:focus:border-blue-400 transition-all duration-300 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                >
-                  {activityLevels.map(level => (
-                    <option key={level.value} value={level.value}>{level.label}</option>
-                  ))}
-                </select>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">
-                  <HiFire className="h-4 w-4 inline mr-2 text-blue-600 dark:text-blue-400" />
-                  Primary Goal
-                </label>
-                <select
-                  value={userData.goal}
-                  onChange={(e) => setUserData(prev => ({ ...prev, goal: e.target.value }))}
-                  className="w-full px-4 py-3 border-2 border-blue-200 dark:border-gray-600 rounded-xl focus:ring-4 focus:ring-blue-200 dark:focus:ring-blue-800 focus:border-blue-500 dark:focus:border-blue-400 transition-all duration-300 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                >
-                  {goals.map(goal => (
-                    <option key={goal.value} value={goal.value}>{goal.label}</option>
-                  ))}
-                </select>
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">
+                    <HiLightningBolt className="h-4 w-4 inline mr-2 text-blue-600 dark:text-blue-400" />
+                    Activity Level
+                  </label>
+                  <select
+                    value={profile.activityLevel}
+                    onChange={(e) => handleInputChange('activityLevel', e.target.value)}
+                    className="w-full px-4 py-3 border-2 border-blue-200 dark:border-gray-600 rounded-xl focus:ring-4 focus:ring-blue-200 dark:focus:ring-blue-800 focus:border-blue-500 dark:focus:border-blue-400 transition-all duration-300 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  >
+                    {activityLevels.map(level => (
+                      <option key={level.value} value={level.value}>{level.label}</option>
+                    ))}
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">
+                    <HiFire className="h-4 w-4 inline mr-2 text-blue-600 dark:text-blue-400" />
+                    Primary Goal
+                  </label>
+                  <select
+                    value={profile.goal}
+                    onChange={(e) => handleInputChange('goal', e.target.value)}
+                    className="w-full px-4 py-3 border-2 border-blue-200 dark:border-gray-600 rounded-xl focus:ring-4 focus:ring-blue-200 dark:focus:ring-blue-800 focus:border-blue-500 dark:focus:border-blue-400 transition-all duration-300 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  >
+                    {goals.map(goal => (
+                      <option key={goal.value} value={goal.value}>{goal.label}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
             </div>
 
             {/* Calculate Button */}
             <button
               onClick={calculateCalories}
-              disabled={isCalculating}
+              disabled={isCalculating || !isProfileComplete}
               className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-8 py-4 rounded-2xl font-bold text-lg hover:from-blue-700 hover:to-indigo-700 transition-all duration-300 disabled:opacity-50 flex items-center justify-center gap-3 shadow-2xl transform hover:scale-105"
             >
               {isCalculating ? (
@@ -385,15 +416,13 @@ const CalorieCalculator = () => {
           </div>
         </div>
 
-        {/* Floating Button - Fixed positioning and improved visibility */}
+        {/* Floating Button */}
         {showFloatingButton && result && (
           <div className="fixed bottom-8 right-8 z-50">
             <div className="relative">
-              {/* Pulsing ring animation */}
               <div className="absolute inset-0 bg-green-400 rounded-full animate-ping opacity-75"></div>
               <div className="absolute inset-0 bg-green-400 rounded-full animate-pulse opacity-50"></div>
               
-              {/* Main button */}
               <button
                 onClick={scrollToMealPlan}
                 className="relative bg-gradient-to-r from-green-500 to-emerald-500 text-white p-4 rounded-full shadow-2xl hover:from-green-600 hover:to-emerald-600 transition-all duration-300 transform hover:scale-110 animate-bounce"
@@ -402,7 +431,6 @@ const CalorieCalculator = () => {
                 <HiTrendingUp className="h-8 w-8" />
               </button>
               
-              {/* Tooltip */}
               <div className="absolute bottom-full right-0 mb-2 px-3 py-1 bg-gray-900 text-white text-sm rounded-lg whitespace-nowrap opacity-0 hover:opacity-100 transition-opacity duration-300">
                 Generate Your Meal Plan!
                 <div className="absolute top-full right-4 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>

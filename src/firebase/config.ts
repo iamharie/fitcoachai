@@ -1,20 +1,16 @@
-// Firebase configuration
-// TODO: Replace with your actual Firebase config
-export const firebaseConfig = {
-  apiKey: "your-api-key",
-  authDomain: "your-project.firebaseapp.com",
-  databaseURL: "https://your-project-default-rtdb.firebaseio.com/",
-  projectId: "your-project-id",
-  storageBucket: "your-project.appspot.com",
-  messagingSenderId: "123456789",
-  appId: "your-app-id"
+import { initializeApp } from "firebase/app";
+import { getDatabase } from "firebase/database";
+
+const firebaseConfig = {
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  databaseURL: import.meta.env.VITE_FIREBASE_DB_URL,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MSG_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
 };
 
-// Initialize Firebase (uncomment when you have your config)
-/*
-import { initializeApp } from 'firebase/app';
-import { getDatabase } from 'firebase/database';
-
+// Initialize Firebase
 const app = initializeApp(firebaseConfig);
 export const database = getDatabase(app);
-*/
